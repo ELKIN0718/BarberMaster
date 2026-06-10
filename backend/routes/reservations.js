@@ -232,6 +232,103 @@ router.get('/barbershop/mine', authenticate, requireRole('barbershop'), async (r
   }
 });
 
+// GET /api/reservations/barbershop/stats - estadísticas de ingresos
+router.get('/barbershop/stats', authenticate, requireRole('barbershop'), async (req, res) => {
+  try {
+    const bsResult = await pool.query(
+      'SELECT id FROM barbershops WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    if (bsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Barbería no encontrada' });
+    }
+
+    const barbershopId = bsResult.rows[0].id;
+
+    // Totales generales
+    const totalsResult = await pool.query(`
+      SELECT
+        COUNT(*)::int AS total_reservations,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_reservations,
+        COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_reservations,
+        COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'simulated'), 0) AS total_revenue,
+        COALESCE(SUM(commission_amount) FILTER (WHERE payment_status = 'simulated'), 0) AS total_commission,
+        COALESCE(SUM(barbershop_amount) FILTER (WHERE payment_status = 'simulated'), 0) AS net_income
+      FROM reservations
+      WHERE barbershop_id = $1 AND payment_status = 'simulated'
+    `, [barbershopId]);
+
+    // Ingresos hoy
+    const todayResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(total_amount), 0) AS revenue,
+        COALESCE(SUM(commission_amount), 0) AS commission,
+        COALESCE(SUM(barbershop_amount), 0) AS net,
+        COUNT(*)::int AS count
+      FROM reservations
+      WHERE barbershop_id = $1
+        AND payment_status = 'simulated'
+        AND appointment_date = CURRENT_DATE
+    `, [barbershopId]);
+
+    // Ingresos esta semana (lunes a domingo)
+    const weekResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(total_amount), 0) AS revenue,
+        COALESCE(SUM(commission_amount), 0) AS commission,
+        COALESCE(SUM(barbershop_amount), 0) AS net,
+        COUNT(*)::int AS count
+      FROM reservations
+      WHERE barbershop_id = $1
+        AND payment_status = 'simulated'
+        AND appointment_date >= date_trunc('week', CURRENT_DATE)
+        AND appointment_date < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
+    `, [barbershopId]);
+
+    // Ingresos este mes
+    const monthResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(total_amount), 0) AS revenue,
+        COALESCE(SUM(commission_amount), 0) AS commission,
+        COALESCE(SUM(barbershop_amount), 0) AS net,
+        COUNT(*)::int AS count
+      FROM reservations
+      WHERE barbershop_id = $1
+        AND payment_status = 'simulated'
+        AND appointment_date >= date_trunc('month', CURRENT_DATE)
+        AND appointment_date < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+    `, [barbershopId]);
+
+    // Ingresos por servicio
+    const byServiceResult = await pool.query(`
+      SELECT
+        s.name,
+        COUNT(r.id)::int AS count,
+        COALESCE(SUM(r.total_amount), 0) AS revenue,
+        COALESCE(SUM(r.commission_amount), 0) AS commission,
+        COALESCE(SUM(r.barbershop_amount), 0) AS net
+      FROM reservations r
+      JOIN services s ON s.id = r.service_id
+      WHERE r.barbershop_id = $1
+        AND r.payment_status = 'simulated'
+      GROUP BY s.name
+      ORDER BY revenue DESC
+    `, [barbershopId]);
+
+    res.json({
+      totals: totalsResult.rows[0],
+      today: todayResult.rows[0],
+      thisWeek: weekResult.rows[0],
+      thisMonth: monthResult.rows[0],
+      byService: byServiceResult.rows,
+    });
+  } catch (err) {
+    console.error('Get income stats error:', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // PATCH /api/reservations/:id/complete - marcar como completada
 router.patch('/:id/complete', authenticate, requireRole('barbershop'), async (req, res) => {
   try {

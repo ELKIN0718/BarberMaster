@@ -62,6 +62,7 @@ const API = (() => {
       const query = new URLSearchParams(params).toString();
       return request('GET', `/api/reservations/barbershop/mine?${query}`, null, true);
     },
+    getMyIncomeStats: () => request('GET', '/api/reservations/barbershop/stats', null, true),
     completeReservation: (id) => request('PATCH', `/api/reservations/${id}/complete`, null, true),
 
     // Admin

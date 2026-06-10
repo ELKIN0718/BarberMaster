@@ -24,6 +24,9 @@ const BarbershopDashboard = {
               <button class="sidebar-item" data-section="services" onclick="BarbershopDashboard.showSection('services')">
                 ✂️ Mis Servicios
               </button>
+              <button class="sidebar-item" data-section="income" onclick="BarbershopDashboard.showSection('income')">
+                💰 Ingresos
+              </button>
               <button class="sidebar-item" data-section="profile" onclick="BarbershopDashboard.showSection('profile')">
                 👤 Mi Perfil
               </button>
@@ -48,6 +51,7 @@ const BarbershopDashboard = {
     switch (section) {
       case 'reservations': this.showReservations(); break;
       case 'services': this.showServices(); break;
+      case 'income': this.showIncome(); break;
       case 'profile': this.showProfile(); break;
     }
   },
@@ -301,6 +305,170 @@ const BarbershopDashboard = {
     } catch (err) {
       toast(err.message, 'error');
     }
+  },
+
+  // =========== INCOME ===========
+  async showIncome() {
+    const container = document.getElementById('dashboard-content');
+    if (!container) return;
+
+    container.innerHTML = `
+      <h2>💰 Ingresos</h2>
+      <p style="color:var(--text-secondary);margin-bottom:1.5rem">Resumen de ingresos generados por tus servicios</p>
+
+      <div class="kpi-grid" id="income-kpi-grid">
+        ${Array(4).fill(0).map(() => `
+          <div class="kpi-card">
+            <div class="skeleton skeleton-text" style="height:2rem;width:60%;margin:0 auto 0.5rem"></div>
+            <div class="skeleton skeleton-text" style="width:80%;margin:0 auto"></div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-top:2rem">
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem">
+          <h4 style="font-family:var(--font-display);font-size:0.95rem;margin-bottom:0.75rem">📅 Hoy</h4>
+          <div id="income-today">
+            <p style="color:var(--text-muted)">Cargando...</p>
+          </div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem">
+          <h4 style="font-family:var(--font-display);font-size:0.95rem;margin-bottom:0.75rem">📅 Esta semana</h4>
+          <div id="income-week">
+            <p style="color:var(--text-muted)">Cargando...</p>
+          </div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem">
+          <h4 style="font-family:var(--font-display);font-size:0.95rem;margin-bottom:0.75rem">📅 Este mes</h4>
+          <div id="income-month">
+            <p style="color:var(--text-muted)">Cargando...</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:2rem">
+        <h4 style="font-family:var(--font-display);font-size:1.1rem;margin-bottom:1rem">📊 Ingresos por servicio</h4>
+        <div id="income-by-service">
+          <div class="skeleton skeleton-text" style="height:1rem;width:80%;margin-bottom:0.5rem"></div>
+          <div class="skeleton skeleton-text" style="height:1rem;width:60%"></div>
+        </div>
+      </div>
+    `;
+
+    this.loadIncome();
+  },
+
+  async loadIncome() {
+    try {
+      const stats = await API.getMyIncomeStats();
+      this.displayIncome(stats);
+    } catch (err) {
+      document.getElementById('income-kpi-grid').innerHTML = `<p style="color:var(--danger)">Error: ${err.message}</p>`;
+    }
+  },
+
+  displayIncome(stats) {
+    const { totals, today, thisWeek, thisMonth, byService } = stats;
+
+    // KPIs generales
+    const kpiGrid = document.getElementById('income-kpi-grid');
+    if (kpiGrid) {
+      kpiGrid.innerHTML = `
+        <div class="kpi-card">
+          <div class="kpi-value">${totals.total_reservations}</div>
+          <div class="kpi-label">Reservas pagadas</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value">${totals.completed_reservations}</div>
+          <div class="kpi-label">Completadas</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value">${formatCOP(totals.total_revenue)}</div>
+          <div class="kpi-label">Ingreso bruto total</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" style="color:var(--success)">${formatCOP(totals.net_income)}</div>
+          <div class="kpi-label">Ingreso neto (sin comisión)</div>
+        </div>
+      `;
+    }
+
+    // Períodos
+    this.renderPeriodCard('income-today', today);
+    this.renderPeriodCard('income-week', thisWeek);
+    this.renderPeriodCard('income-month', thisMonth);
+
+    // Por servicio
+    const byServiceContainer = document.getElementById('income-by-service');
+    if (!byServiceContainer) return;
+
+    if (!byService || byService.length === 0) {
+      byServiceContainer.innerHTML = `
+        <div class="empty-state" style="padding:1rem">
+          <div class="empty-icon">📊</div>
+          <h3>Sin datos</h3>
+          <p>Aún no hay ingresos registrados por servicio.</p>
+        </div>
+      `;
+      return;
+    }
+
+    byServiceContainer.innerHTML = `
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Servicio</th>
+              <th style="text-align:center">Cantidad</th>
+              <th style="text-align:right">Ingreso total</th>
+              <th style="text-align:right">Lo que recibes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${byService.map(s => `
+              <tr>
+                <td><strong>${s.name}</strong></td>
+                <td style="text-align:center">${s.count}</td>
+                <td style="text-align:right">${formatCOP(s.revenue)}</td>
+                <td style="text-align:right;font-weight:600;color:var(--success)">${formatCOP(s.net)}</td>
+              </tr>
+            `).join('')}
+            <tr style="font-weight:700;background:var(--primary-glow)">
+              <td><strong>Total</strong></td>
+              <td style="text-align:center">${byService.reduce((a, s) => a + Number(s.count), 0)}</td>
+              <td style="text-align:right">${formatCOP(byService.reduce((a, s) => a + Number(s.revenue), 0))}</td>
+              <td style="text-align:right;color:var(--success)">${formatCOP(byService.reduce((a, s) => a + Number(s.net), 0))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+
+  renderPeriodCard(elementId, data) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:0.4rem">
+        <div style="display:flex;justify-content:space-between;font-size:0.9rem">
+          <span style="color:var(--text-secondary)">Reservas</span>
+          <span style="font-weight:600">${data.count}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.9rem">
+          <span style="color:var(--text-secondary)">Ingreso bruto</span>
+          <span style="font-weight:600">${formatCOP(data.revenue)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.9rem">
+          <span style="color:var(--text-secondary)">Comisión</span>
+          <span style="color:var(--text-muted)">- ${formatCOP(data.commission)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:1rem;border-top:1px solid var(--border);padding-top:0.4rem;margin-top:0.2rem">
+          <span style="font-weight:600">Neto</span>
+          <span style="font-weight:700;color:var(--success)">${formatCOP(data.net)}</span>
+        </div>
+      </div>
+    `;
   },
 
   // =========== PROFILE ===========
