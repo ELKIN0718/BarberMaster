@@ -1,0 +1,59 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: barbermaster_db
+    environment:
+      POSTGRES_USER: barbermaster
+      POSTGRES_PASSWORD: barbermaster123
+      POSTGRES_DB: barbermaster_db
+      TZ: America/Bogota
+      PGTZ: America/Bogota
+    ports:
+      - "5432:5432"
+    volumes:
+      - barbermaster_pgdata:/var/lib/postgresql/data
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U barbermaster -d barbermaster_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: barbermaster_backend
+    environment:
+      TZ: America/Bogota
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: barbermaster
+      DB_PASSWORD: barbermaster123
+      DB_NAME: barbermaster_db
+      JWT_SECRET: barbermaster_super_secret_key_change_in_production
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: barbermaster_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@barbermaster.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  barbermaster_pgdata:
