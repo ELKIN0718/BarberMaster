@@ -22,50 +22,40 @@ Proyecto académico - Universidad de Cartagena, Colombia.
 ### Opción A: Todo con Docker (recomendado)
 
 ```bash
-# 1. Copiar variables de entorno (opcional, docker-compose ya incluye defaults)
-cp .env.example .env
+# Iniciar todos los servicios (PostgreSQL, Backend, pgAdmin)
+docker compose up --build
 
-# 2. Iniciar todos los servicios (PostgreSQL, Backend, pgAdmin)
-docker-compose up -d --build
-
-# 3. El schema.sql se ejecuta automáticamente al iniciar PostgreSQL
-#    Si necesitas resetear la BD, borra el volumen:
-#    docker-compose down -v && docker-compose up -d
-
-# 4. Abrir la aplicación
+# El schema.sql se ejecuta automáticamente al iniciar PostgreSQL
+# Si necesitas resetear la BD, borra el volumen:
+# docker compose down -v && docker compose up --build
 ```
 
-App:     http://localhost:3000
-pgAdmin: http://localhost:5050
-```
+Luego abre la aplicación en:
 
-### Opción B: Desarrollo local (backen fuera de Docker)
+- **App:**     http://localhost:3000
+- **pgAdmin:** http://localhost:5050
+
+### Opción B: Desarrollo local (backend fuera de Docker)
 
 ```bash
 # 1. Iniciar solo bases de datos
- docker-compose up -d postgres pgadmin
+docker compose up -d postgres pgadmin
 
-# 2. Copiar y configurar variables de entorno
- cp .env.example .env
- # Editar .env si es necesario (DB_HOST=localhost para desarrollo local)
+# 2. Instalar dependencias del backend
+cd backend
+npm install
 
-# 3. Instalar dependencias del backend
- cd backend
- npm install
+# 3. Ejecutar schema SQL
+docker exec -i barbermaster_db psql -U barbermaster -d barbermaster_db < backend/db/schema.sql
 
-# 4. Ejecutar schema SQL
- docker exec -i barbermaster_db psql -U barbermaster -d barbermaster_db < backend/db/schema.sql
-
-# 5. Iniciar servidor en modo desarrollo
- cd backend
- npm run dev
-
-# 6. Abrir la aplicación
+# 4. Iniciar servidor en modo desarrollo
+npm run dev
 ```
 
-App:     http://localhost:3000
-pgAdmin: http://localhost:5050
-```
+Luego abre la aplicación en:
+
+- **App:**     http://localhost:3000
+- **pgAdmin:** http://localhost:5050
 
 ## Credenciales de prueba
 
