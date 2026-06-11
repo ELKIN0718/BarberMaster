@@ -71,8 +71,12 @@ router.post('/initiate', async (req, res) => {
       codeExists = check.rows.length > 0;
     }
 
-    // Create appointment_datetime
-    const appointment_datetime = `${appointment_date} ${appointment_time}`;
+    // Create appointment_datetime — usa Date de JS para incluir zona horaria explícita (ISO 8601)
+    // Así PostgreSQL interpreta correctamente la hora sin depender de la zona horaria de la sesión.
+    const [year, month, day] = appointment_date.split('-').map(Number);
+    const [hour, minute] = appointment_time.split(':').map(Number);
+    const localDate = new Date(year, month - 1, day, hour, minute);
+    const appointment_datetime = localDate.toISOString();
 
     const result = await pool.query(`
       INSERT INTO reservations (

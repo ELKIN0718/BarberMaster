@@ -72,7 +72,7 @@ pgAdmin: http://localhost:5050
 | Rol | Email | Contraseña |
 |-----|-------|-----------|
 | Admin | admin@barbermaster.com | admin123 |
-| Barbería | barberia1@test.com | admin123 |
+| Barbería | barberia@gmail.com | admin123 |
 
 **pgAdmin:** admin@barbermaster.com / admin123
 
@@ -88,7 +88,7 @@ Para probar el sistema de principio a fin:
 
 ### Como barbería:
 1. Cierra sesión del admin
-2. Inicia sesión con `barberia1@test.com` / `admin123`
+2. Inicia sesión con `barberia@gmail.com` / `admin123`
 3. Completa el perfil de la barbería (nombre, dirección, horarios)
 4. Crea servicios (corte, barba, etc.)
 5. Revisa las reservas entrantes
