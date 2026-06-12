@@ -132,6 +132,7 @@ const HomePage = {
               <h4>Legal</h4>
               <a href="#home" onclick="HomePage.scrollToPrivacy(event)">Política de privacidad</a>
               <a href="#home">Términos de uso</a>
+              <a href="https://sedeelectronica.sic.gov.co/">Sic</a>
             </div>
             <div class="footer-links">
               <h4>Contacto</h4>
